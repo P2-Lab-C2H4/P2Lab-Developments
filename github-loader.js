@@ -178,21 +178,14 @@ function _getSectionLines(sections, keys) {
   return [];
 }
 
-function _parseAppInfo(infoText, overviewText) {
-  const mergedSections = {
-    ..._parseSections(infoText),
-    ..._parseSections(overviewText),
-  };
+function _parseAppInfo(infoText) {
+  const mergedSections = _parseSections(infoText);
 
   const name = _getSectionLines(mergedSections, ['表示アプリ名', 'アプリ名', '名前', 'Name'])[0] || '';
   const category = _getSectionLines(mergedSections, ['カテゴリ', 'Category', '分類'])[0] || 'アプリ';
   const featureLines = _getSectionLines(mergedSections, ['主な機能', '機能', 'Features'])
     .map(line => line.replace(/^[・\-*•\d.]+\s*/, '').trim())
     .filter(Boolean);
-  const targetText = _getSectionLines(mergedSections, ['対象部署', '対象', '部署']).join('、');
-  const targets = targetText
-    ? targetText.split(/[,、，/／\n]+/).map(item => item.trim()).filter(Boolean)
-    : [];
   const requirements = _getSectionLines(mergedSections, ['動作環境', '環境', 'Requirements']).join(' / ');
   const language     = _getSectionLines(mergedSections, ['作成言語', '開発言語', '使用言語', 'Language']).join(' / ');
   const summaryLines = _getSectionLines(mergedSections, ['概要', 'About', 'Overview', '説明']);
@@ -204,7 +197,6 @@ function _parseAppInfo(infoText, overviewText) {
     summary: summaryLines.join('\n'),
     shortDescription: (summaryLines[0] || '').trim(),
     features: featureLines,
-    targets,
     requirements: requirements.trim() || '-',
     language: language.trim() || '-',
     overview: overviewLines.join('\n').trim(),
@@ -302,16 +294,15 @@ async function _repoToApp(repo) {
   if (!infoEntries || !infoEntries.length) return null;
 
   const names = new Set(infoEntries.map(entry => entry.name.toLowerCase()));
-  const hasInfoFile = names.has('application_info.txt') || names.has('overview.txt');
+  const hasInfoFile = names.has('application_info.txt');
   if (!hasInfoFile) return null;
 
-  const [infoText, overviewText, release] = await Promise.all([
+  const [infoText, release] = await Promise.all([
     _ghText(owner, repo.name, 'DLpage_info/application_info.txt', branch),
-    _ghText(owner, repo.name, 'DLpage_info/Overview.txt', branch),
     _fetchRelease(owner, repo.name),
   ]);
 
-  const parsed = _parseAppInfo(infoText, overviewText);
+  const parsed = _parseAppInfo(infoText);
   const inlineImages = _sortCardImages(infoEntries);
   const referencedImages = await _readCardImageRefs(owner, repo.name, branch, infoEntries);
   const images = [...referencedImages, ...inlineImages].slice(0, GH_CONFIG.maxImages);
@@ -375,7 +366,6 @@ async function _repoToApp(repo) {
     category: parsed.category || 'アプリ',
     version,
     lastUpdated,
-    targets: parsed.targets.length ? parsed.targets : ['未指定'],
     requirements: parsed.requirements,
     language: parsed.language,
     features: parsed.features,

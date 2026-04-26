@@ -97,7 +97,6 @@ function _normalize(app, i) {
     category:         app.category         || 'その他',
     version:          app.version          || '-',
     lastUpdated:      app.lastUpdated      || '-',
-    targets:          Array.isArray(app.targets) ? app.targets : [],
     requirements:     app.requirements     || '-',
     language:         app.language         || '-',
     features:         Array.isArray(app.features) ? app.features : [],
@@ -138,7 +137,7 @@ function getFiltered() {
   return normalizedApps.filter(app => {
     const matchCat    = activeCategory === 'all' || app.category === activeCategory;
     const matchSearch = !searchQuery ||
-      [app.name, app.shortDescription, app.category, ...app.targets]
+      [app.name, app.shortDescription, app.category]
         .join(' ').toLowerCase().includes(searchQuery);
     return matchCat && matchSearch;
   });
@@ -166,7 +165,6 @@ function iconHTML(app, large = false) {
    ============================================================ */
 function cardHTML(app) {
   const dl      = app.downloads[0] || { url: '#', label: 'リンク未設定' };
-  const targets = app.targets.map(t => `<span class="target-tag">${t}</span>`).join('');
   const images  = app.images || [];
 
   let imagesHTML = '';
@@ -190,7 +188,6 @@ function cardHTML(app) {
     </div>
   </div>
   <p class="app-short-desc">${app.shortDescription}</p>
-  <div class="app-targets">${targets}</div>
   <div class="card-footer">
     <button class="btn btn-detail">詳細を見る</button>
     <a class="btn btn-primary dl-btn" href="${dl.url}" target="_blank"
@@ -237,7 +234,6 @@ function openModal(id) {
   const images   = app.images || [];
   const dl       = app.downloads || [];
   const features = app.features.map(f => `<li>${f}</li>`).join('');
-  const targets  = app.targets.map(t => `<span class="chip">${t}</span>`).join('');
 
   const downloads = dl.map(d => `
     <a href="${d.url}" target="_blank" rel="noopener"
@@ -315,11 +311,7 @@ function openModal(id) {
   <ul class="features-list">${features || '<li>—</li>'}</ul>
 </div>
 
-<div class="modal-three-col">
-  <div class="modal-section">
-    <div class="section-label">対象部署</div>
-    <div class="target-chips">${targets || '<span class="chip">—</span>'}</div>
-  </div>
+<div class="modal-two-col">
   <div class="modal-section">
     <div class="section-label">作成言語</div>
     <div class="requirements-box">${app.language}</div>
