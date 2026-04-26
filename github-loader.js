@@ -3,24 +3,39 @@
    ============================================================ */
 
 const GH_CONFIG = {
-  owner:         'Sangyoui-admin',
+  owner:         '',
   ownerType:     'user',
-  portalRepo:    'app-portal', // Page_specified.txt を置くリポジトリ名
+  portalRepo:    '',           // Page_specified.txt を置くリポジトリ名
   portalBranch:  'main',       // そのリポジトリのブランチ
   cacheMinutes:  5,
   slideInterval: 6000,
   maxImages:     12,
-  cacheVersion:  '2026-04-24-v1',
+  cacheVersion:  '2026-04-26-v2',
 };
 
 {
+  _detectGitHubPagesConfig();
   const params = new URLSearchParams(location.search);
   if (params.get('gh_owner')) GH_CONFIG.owner = params.get('gh_owner');
+  if (params.get('gh_owner_type')) GH_CONFIG.ownerType = _normalizeOwnerType(params.get('gh_owner_type'));
+  if (params.get('gh_repo')) GH_CONFIG.portalRepo = params.get('gh_repo');
+  if (params.get('gh_branch')) GH_CONFIG.portalBranch = params.get('gh_branch');
   if (params.get('gh_refresh')) {
     Object.keys(localStorage)
       .filter(key => key.startsWith('gh_apps_'))
       .forEach(key => localStorage.removeItem(key));
   }
+}
+
+function _detectGitHubPagesConfig() {
+  const host = location.hostname;
+  const githubPagesSuffix = '.github.io';
+  if (!host.toLowerCase().endsWith(githubPagesSuffix)) return;
+
+  const owner = host.slice(0, -githubPagesSuffix.length);
+  const pathParts = location.pathname.split('/').filter(Boolean);
+  GH_CONFIG.owner = owner;
+  GH_CONFIG.portalRepo = pathParts[0] || owner + '.github.io';
 }
 
 function _ghHeaders() {
@@ -55,12 +70,64 @@ async function _ghText(owner, repo, path, ref) {
   }
 }
 
+async function _sameSiteText(path) {
+  try {
+    const url = new URL(path, location.href);
+    url.searchParams.set('v', Date.now().toString());
+    const response = await fetch(url.href, { cache: 'no-store' });
+    if (!response.ok) return null;
+    return response.text();
+  } catch {
+    return null;
+  }
+}
+
 async function _ghDir(owner, repo, path, ref) {
   const encodedPath = path.split('/').map(encodeURIComponent).join('/');
   const url =
     'https://api.github.com/repos/' + owner + '/' + repo + '/contents/' + encodedPath + '?ref=' + encodeURIComponent(ref);
   const data = await _ghFetch(url);
   return Array.isArray(data) ? data : null;
+}
+
+async function _findRepoIco(owner, repo, branch) {
+  if (!owner || !repo) return null;
+  const queue = [''];
+  const icoFiles = [];
+  let checked = 0;
+
+  while (queue.length && checked < 30) {
+    const path = queue.shift();
+    checked += 1;
+    const entries = await _ghDir(owner, repo, path, branch || 'main');
+    if (!entries) continue;
+
+    for (const entry of entries) {
+      if (entry.type === 'file' && /\.ico$/i.test(entry.name)) {
+        icoFiles.push(entry);
+      } else if (entry.type === 'dir' && entry.path) {
+        queue.push(entry.path);
+      }
+    }
+  }
+
+  if (!icoFiles.length) return null;
+  const preferred =
+    icoFiles.find(e => e.name.toLowerCase() === 'favicon.ico') ||
+    icoFiles.find(e => !e.path || !e.path.includes('/')) ||
+    icoFiles[0];
+  return preferred.download_url || null;
+}
+
+async function _findSameSiteIco() {
+  try {
+    const url = new URL('favicon.ico', location.href);
+    url.searchParams.set('v', Date.now().toString());
+    const response = await fetch(url.href, { method: 'HEAD', cache: 'no-store' });
+    return response.ok ? url.href : null;
+  } catch {
+    return null;
+  }
 }
 
 function _parseLines(text) {
@@ -118,7 +185,7 @@ function _parseAppInfo(infoText, overviewText) {
   };
 
   const name = _getSectionLines(mergedSections, ['表示アプリ名', 'アプリ名', '名前', 'Name'])[0] || '';
-  const category = _getSectionLines(mergedSections, ['カテゴリ', 'Category', '分類'])[0] || '社内アプリ';
+  const category = _getSectionLines(mergedSections, ['カテゴリ', 'Category', '分類'])[0] || 'アプリ';
   const featureLines = _getSectionLines(mergedSections, ['主な機能', '機能', 'Features'])
     .map(line => line.replace(/^[・\-*•\d.]+\s*/, '').trim())
     .filter(Boolean);
@@ -221,10 +288,10 @@ async function _fetchAllRepos() {
   }
 
   // フォーク・アーカイブ・非公開に加え、ポータルリポジトリ自身も除外
-  const portalRepo = GH_CONFIG.portalRepo || 'app-portal';
+  const portalRepo = GH_CONFIG.portalRepo || '';
   return repos.filter(repo =>
     repo && !repo.fork && !repo.archived && !repo.private &&
-    repo.name !== portalRepo
+    (!portalRepo || repo.name !== portalRepo)
   );
 }
 
@@ -305,10 +372,10 @@ async function _repoToApp(repo) {
     icon:       '📦',
     iconColor:  '#2B78D3',
     iconImage,
-    category: parsed.category || '社内アプリ',
+    category: parsed.category || 'アプリ',
     version,
     lastUpdated,
-    targets: parsed.targets.length ? parsed.targets : ['全部署'],
+    targets: parsed.targets.length ? parsed.targets : ['未指定'],
     requirements: parsed.requirements,
     language: parsed.language,
     features: parsed.features,
@@ -324,7 +391,7 @@ async function _repoToApp(repo) {
 window.GH_loadApps = async function () {
   if (!GH_CONFIG.owner) return [];
 
-  const cacheKey = 'gh_apps_' + GH_CONFIG.owner + '_' + GH_CONFIG.cacheVersion;
+  const cacheKey = 'gh_apps_' + GH_CONFIG.owner + '_' + GH_CONFIG.ownerType + '_' + GH_CONFIG.cacheVersion;
   try {
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
     if (cached && Date.now() - cached.ts < GH_CONFIG.cacheMinutes * 60 * 1000) {
@@ -397,48 +464,54 @@ function _resolveAsset(owner, repo, branch, value) {
   );
 }
 
-/* ============================================================
-   ページ外観設定ファイル (Page_specified.txt) の取得と解析
-   ============================================================
-   【Page_specified.txt で指定できる項目】
+function _resolveSameSiteAsset(value) {
+  if (!value) return null;
+  const v = value.trim();
+  if (!v) return null;
+  if (/^https?:\/\//i.test(v)) return v;
+  try {
+    return new URL(v.replace(/^\.?\//, ''), location.href).href;
+  } catch {
+    return null;
+  }
+}
 
-   ◆ サイト名               ← 左上ブランド名 (例: 社内ツールポータル)
-   ◆ サイトアイコン         ← 左上アイコン絵文字 (例: 🏢)
-   ◆ アクセントカラー       ← ボタン・リンク色 (例: #0071E3)
-   ◆ ナビ色                 ← 上部ナビバー背景色 (例: #1A1A2E)
+function _applyPageConfigToGhConfig(cfg) {
+  if (!cfg) return;
+  if (cfg.githubOwner) GH_CONFIG.owner = cfg.githubOwner;
+  if (cfg.githubOwnerType) GH_CONFIG.ownerType = _normalizeOwnerType(cfg.githubOwnerType);
+  if (cfg.githubPortalRepo) GH_CONFIG.portalRepo = cfg.githubPortalRepo;
+  if (cfg.githubBranch) GH_CONFIG.portalBranch = cfg.githubBranch;
+}
 
-   ◆ ヘッダー色             ← ヒーロー背景色 (1行=単色 / 2行=グラデーション)
-   ◆ ヘッダー画像           ← ヒーロー背景画像 (URL or リポジトリ内パス)
-                               推奨サイズ: 1920×220px (比率 約8.7:1)
-   ◆ ヘッダー文字タイトル   ← ヒーローの大見出し
-   ◆ ヘッダー文字色         ← 大見出しの文字色
-   ◆ ヘッダー文字説明       ← ヒーローのサブ説明文
-   ◆ ヘッダー文字説明色     ← サブ説明文の文字色
+function _normalizeOwnerType(value) {
+  const v = (value || '').trim().toLowerCase();
+  return v === 'org' || v === 'organization' || v === 'organisation' ? 'org' : 'user';
+}
 
-   ◆ 背景色                 ← ページ背景色
-   ◆ 背景画像               ← ページ背景画像 (タイル繰り返し / 推奨: 400×400px)
-   ============================================================ */
-window.GH_loadPageConfig = async function () {
-  const owner  = GH_CONFIG.owner;
-  const repo   = GH_CONFIG.portalRepo   || 'app-portal';
-  const branch = GH_CONFIG.portalBranch || 'main';
-
-  // main → master の順にフォールバック
-  const text =
-    (await _ghText(owner, repo, 'Page_specified.txt', branch)) ||
-    (await _ghText(owner, repo, 'Page_specified.txt', 'master'));
+function _parsePageConfig(text, assetResolver) {
   if (!text) return null;
 
   const sections = _parseSections(text);
   const get = (...keys) => _getSectionLines(sections, keys);
-  const asset = v => _resolveAsset(owner, repo, branch, v);
+  const asset = v => assetResolver(v);
 
   const heroColors = get('ヘッダー色', 'ヘッダー背景色', 'hero_color');
+  const rawSiteIcon = get('サイトアイコン', 'ブランドアイコン', 'site_icon')[0] || null;
+  const siteIconImageValue = get('サイトアイコン画像', 'サイトアイコンファイル', 'favicon', 'site_icon_image')[0] ||
+    (/\.(?:ico|png|jpe?g|gif|webp|svg)(?:\?.*)?$/i.test(rawSiteIcon || '') ? rawSiteIcon : null);
 
   return {
+    // GitHub 取得元
+    githubOwner:      get('GitHubアカウント', 'GitHubオーナー', 'github_owner', 'gh_owner')[0] || null,
+    githubOwnerType:  get('GitHub種別', 'GitHubオーナー種別', 'github_owner_type', 'gh_owner_type')[0] || null,
+    githubPortalRepo: get('GitHub Pagesリポジトリ', 'ポータルリポジトリ', 'github_portal_repo', 'gh_repo')[0] || null,
+    githubBranch:     get('GitHubブランチ', 'ポータルブランチ', 'github_branch', 'gh_branch')[0] || null,
+
     // ナビゲーションバー
     siteTitle:      get('サイト名',       'ブランド名',       'site_title')[0]    || null,
-    siteIcon:       get('サイトアイコン', 'ブランドアイコン', 'site_icon')[0]     || null,
+    siteIcon:       siteIconImageValue === rawSiteIcon ? null : rawSiteIcon,
+    siteIconImage:  asset(siteIconImageValue),
     accentColor:    get('アクセントカラー','ボタン色',        'accent_color')[0]  || null,
     navColor:       get('ナビ色',         'ナビゲーション色', 'nav_color')[0]     || null,
 
@@ -455,4 +528,57 @@ window.GH_loadPageConfig = async function () {
     bgColor:        get('背景色', 'background_color', 'bg_color')[0] || null,
     bgImage:        asset(get('背景画像', 'background_image', 'bg_image')[0]),
   };
+}
+
+/* ============================================================
+   ページ外観設定ファイル (Page_specified.txt) の取得と解析
+   ============================================================
+   【Page_specified.txt で指定できる項目】
+
+   ◆ サイト名               ← 左上ブランド名 (例: アプリ配布ポータル)
+   ◆ サイトアイコン         ← 左上アイコン絵文字 (例: ⚙)
+   ◆ サイトアイコン画像     ← 左上アイコン画像 / favicon (例: favicon.ico)
+   ◆ アクセントカラー       ← ボタン・リンク色 (例: #0071E3)
+   ◆ ナビ色                 ← 上部ナビバー背景色 (例: #1A1A2E)
+
+   ◆ ヘッダー色             ← ヒーロー背景色 (1行=単色 / 2行=グラデーション)
+   ◆ ヘッダー画像           ← ヒーロー背景画像 (URL or リポジトリ内パス)
+                               推奨サイズ: 1920×220px (比率 約8.7:1)
+   ◆ ヘッダー文字タイトル   ← ヒーローの大見出し
+   ◆ ヘッダー文字色         ← 大見出しの文字色
+   ◆ ヘッダー文字説明       ← ヒーローのサブ説明文
+   ◆ ヘッダー文字説明色     ← サブ説明文の文字色
+
+   ◆ 背景色                 ← ページ背景色
+   ◆ 背景画像               ← ページ背景画像 (タイル繰り返し / 推奨: 400×400px)
+   ============================================================ */
+window.GH_loadPageConfig = async function () {
+  const sameSiteText = await _sameSiteText('Page_specified.txt');
+  if (sameSiteText) {
+    const cfg = _parsePageConfig(sameSiteText, _resolveSameSiteAsset);
+    _applyPageConfigToGhConfig(cfg);
+    if (!cfg.siteIconImage) {
+      cfg.siteIconImage =
+        (await _findRepoIco(GH_CONFIG.owner, GH_CONFIG.portalRepo, GH_CONFIG.portalBranch)) ||
+        (await _findSameSiteIco());
+    }
+    return cfg;
+  }
+
+  const owner  = GH_CONFIG.owner;
+  const repo   = GH_CONFIG.portalRepo;
+  const branch = GH_CONFIG.portalBranch || 'main';
+  if (!owner || !repo) return null;
+
+  // main → master の順にフォールバック
+  const text =
+    (await _ghText(owner, repo, 'Page_specified.txt', branch)) ||
+    (await _ghText(owner, repo, 'Page_specified.txt', 'master'));
+  if (!text) return null;
+
+  const asset = v => _resolveAsset(owner, repo, branch, v);
+  const cfg = _parsePageConfig(text, asset);
+  _applyPageConfigToGhConfig(cfg);
+  if (!cfg.siteIconImage) cfg.siteIconImage = await _findRepoIco(owner, repo, branch);
+  return cfg;
 };

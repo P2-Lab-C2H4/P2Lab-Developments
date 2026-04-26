@@ -1,20 +1,23 @@
+◆ GitHub Pagesリポジトリ
+P2Lab-Developments
+
 ◆ サイト名
-業務効率化内製ツール & アプリケーション
+P2-Lab 製作所
 
 ◆ サイトアイコン
-🖥️
+🚀
+
+◆ サイトアイコン画像
+App_icon.ico
 
 ◆ アクセントカラー
-#1F7AD6
+#30A19F
 
-◆ ナビ色
-#363C54
-
-◆ ヘッダー色
-#134986
+◆ ヘッダー画像
+https://www.dropbox.com/scl/fi/th4wta4bsrw4b04jjn1mi/00027_1777178321_denoise.psd?rlkey=eidnwi7rjbnxaj01m5nur2rei&st=w7dkhi5t&dl=0
 
 ◆ ヘッダー文字タイトル
-業務効率化内製ツール & アプリケーション
+You can download applications created in P2-Lab.
 
 ◆ ヘッダー文字説明
-業務効率化のために開発された社内専用ツールを配布しています
+Here, you can browse and download various C2H4 applications, including those for creating hacks and distributing at events.

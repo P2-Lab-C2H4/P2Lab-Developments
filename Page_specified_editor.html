@@ -241,7 +241,10 @@
       display: grid; place-items: center;
       font-size: 13px; flex-shrink: 0;
       transition: background 0.3s;
+      overflow: hidden;
     }
+    .pv-icon.has-image { background: transparent; }
+    .pv-icon img { width: 100%; height: 100%; object-fit: contain; }
     .pv-nav-name {
       color: #fff; font-size: 13px; font-weight: 700;
     }
@@ -391,6 +394,40 @@
       </div>
       <div class="panel-body">
 
+        <!-- ── GitHub 取得元 ── -->
+        <div class="form-section">
+          <div class="sec-title">GitHub 取得元</div>
+
+          <div class="field">
+            <div class="field-label">GitHubアカウント <span class="opt">省略可 / 自動判定</span></div>
+            <input type="text" class="field-input" id="githubOwner"
+                   placeholder="例: your-github-account" oninput="update()">
+            <div class="field-hint">通常の GitHub Pages URL では自動判定されます。カスタムドメインや別アカウント参照時に指定してください。</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">GitHub種別 <span class="opt">省略可</span></div>
+            <select class="field-input" id="githubOwnerType" onchange="update()">
+              <option value="">自動 / user</option>
+              <option value="user">user</option>
+              <option value="org">org</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <div class="field-label">GitHub Pagesリポジトリ <span class="opt">省略可 / 自動判定</span></div>
+            <input type="text" class="field-input" id="githubPortalRepo"
+                   placeholder="例: your-pages-repo" oninput="update()">
+            <div class="field-hint">配布ページを置いているリポジトリ名です。カード一覧から除外されます。</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">GitHubブランチ <span class="opt">省略可</span></div>
+            <input type="text" class="field-input" id="githubBranch"
+                   placeholder="例: main" oninput="update()">
+          </div>
+        </div>
+
         <!-- ── ナビゲーションバー ── -->
         <div class="form-section">
           <div class="sec-title">ナビゲーションバー（上部固定バー）</div>
@@ -401,20 +438,27 @@
           </div>
 
           <div class="field">
-            <div class="field-label">サイトアイコン <span class="opt">省略可 / 絵文字1文字</span></div>
-            <input type="text" class="field-input" id="siteIcon" placeholder="例: 🏢" oninput="update()">
+            <div class="field-label">サイトアイコン <span class="opt">省略可 / 絵文字</span></div>
+            <input type="text" class="field-input" id="siteIcon" placeholder="例: ⚙" oninput="update()">
             <div class="emoji-chips">
-              <span class="emoji-chip" onclick="pick('siteIcon','🏢')">🏢</span>
               <span class="emoji-chip" onclick="pick('siteIcon','⚙')">⚙</span>
               <span class="emoji-chip" onclick="pick('siteIcon','🔧')">🔧</span>
-              <span class="emoji-chip" onclick="pick('siteIcon','💼')">💼</span>
               <span class="emoji-chip" onclick="pick('siteIcon','📋')">📋</span>
               <span class="emoji-chip" onclick="pick('siteIcon','🖥️')">🖥️</span>
               <span class="emoji-chip" onclick="pick('siteIcon','🚀')">🚀</span>
               <span class="emoji-chip" onclick="pick('siteIcon','💡')">💡</span>
-              <span class="emoji-chip" onclick="pick('siteIcon','🏭')">🏭</span>
-              <span class="emoji-chip" onclick="pick('siteIcon','🏥')">🏥</span>
+              <span class="emoji-chip" onclick="pick('siteIcon','📦')">📦</span>
+              <span class="emoji-chip" onclick="pick('siteIcon','🌐')">🌐</span>
+              <span class="emoji-chip" onclick="pick('siteIcon','⭐')">⭐</span>
             </div>
+            <div class="field-hint">サイトアイコン画像またはリポジトリ内の .ico がある場合は画像が優先されます。</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">サイトアイコン画像 <span class="opt">省略可</span></div>
+            <input type="text" class="field-input" id="siteIconImage"
+                   placeholder="例: favicon.ico  または  images/icon.ico" oninput="update()">
+            <div class="field-hint">未指定の場合、GitHub Pages リポジトリ直下の .ico を自動使用します。</div>
           </div>
 
           <div class="field">
@@ -695,6 +739,13 @@ function radio(name) {
   return document.querySelector(`input[name="${name}"]:checked`)?.value || '';
 }
 
+function normalizeOwnerType(value) {
+  const v = (value || '').trim().toLowerCase();
+  if (v === 'org' || v === 'organization' || v === 'organisation') return 'org';
+  if (v === 'user') return 'user';
+  return '';
+}
+
 /* ============================================================
    プレビュー更新
    ============================================================ */
@@ -704,8 +755,21 @@ function updatePreview() {
   document.getElementById('pvNav').style.background = navBg;
 
   const acc = v('accentColor') || '#0071E3';
-  document.getElementById('pvIcon').style.background = acc;
-  document.getElementById('pvIcon').textContent = v('siteIcon') || '⚙';
+  const pvIcon = document.getElementById('pvIcon');
+  const iconImage = v('siteIconImage');
+  pvIcon.innerHTML = '';
+  if (iconImage) {
+    const img = document.createElement('img');
+    img.src = iconImage;
+    img.alt = '';
+    pvIcon.appendChild(img);
+    pvIcon.style.background = 'transparent';
+    pvIcon.classList.add('has-image');
+  } else {
+    pvIcon.classList.remove('has-image');
+    pvIcon.style.background = acc;
+    pvIcon.textContent = v('siteIcon') || '⚙';
+  }
   document.getElementById('pvName').textContent   = v('siteTitle') || '（サイト名）';
 
   // ヒーロー背景
@@ -775,8 +839,14 @@ function generateText() {
     lines.push('');
   }
 
+  add('GitHubアカウント', v('githubOwner'));
+  add('GitHub種別', v('githubOwnerType'));
+  add('GitHub Pagesリポジトリ', v('githubPortalRepo'));
+  add('GitHubブランチ', v('githubBranch'));
+
   add('サイト名',           v('siteTitle'));
   add('サイトアイコン',      v('siteIcon'));
+  add('サイトアイコン画像',  v('siteIconImage'));
   add('アクセントカラー',   v('accentColor'));
   add('ナビ色',             v('navColor'));
 
@@ -858,6 +928,8 @@ function loadPaste() {
 const _SEC_RE = /^\s*[◆■●▶▷◇□○★☆＊※【\[]+\s*(.+?)(?:[◆■●▶▷◇□○★☆＊※】\]]*)\s*$/;
 
 function parseAndFill(text) {
+  resetForm();
+
   const secs = {};
   let cur = null;
   for (const raw of text.split(/\r?\n/)) {
@@ -884,8 +956,19 @@ function parseAndFill(text) {
     if (/^#[0-9A-Fa-f]{6}$/.test(val)) setVal(swId, val);
   }
 
+  setVal('githubOwner', get('GitHubアカウント','GitHubオーナー','github_owner','gh_owner')[0]);
+  setVal('githubOwnerType', normalizeOwnerType(get('GitHub種別','GitHubオーナー種別','github_owner_type','gh_owner_type')[0]));
+  setVal('githubPortalRepo', get('GitHub Pagesリポジトリ','ポータルリポジトリ','github_portal_repo','gh_repo')[0]);
+  setVal('githubBranch', get('GitHubブランチ','ポータルブランチ','github_branch','gh_branch')[0]);
+
   setVal('siteTitle', get('サイト名','ブランド名','site_title')[0]);
-  setVal('siteIcon',  get('サイトアイコン','ブランドアイコン','site_icon')[0]);
+  const siteIconVal = get('サイトアイコン','ブランドアイコン','site_icon')[0];
+  if (/\.(?:ico|png|jpe?g|gif|webp|svg)(?:\?.*)?$/i.test(siteIconVal || '')) {
+    setVal('siteIconImage', siteIconVal);
+  } else {
+    setVal('siteIcon', siteIconVal);
+    setVal('siteIconImage', get('サイトアイコン画像','サイトアイコンファイル','favicon','site_icon_image')[0]);
+  }
   setCol('accentColor','accentSw', get('アクセントカラー','ボタン色','accent_color')[0]);
   setCol('navColor',  'navSw',    get('ナビ色','ナビゲーション色','nav_color')[0]);
 
@@ -917,6 +1000,22 @@ function parseAndFill(text) {
   togglePageBg();
 
   update();
+}
+
+function resetForm() {
+  [
+    'githubOwner','githubOwnerType','githubPortalRepo','githubBranch',
+    'siteTitle','siteIcon','siteIconImage','accentColor','navColor',
+    'heroImg','heroC1','heroC2','heroTitle','heroTC','heroDesc','heroDC',
+    'bgImg','bgColor'
+  ].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('heroBgCol').checked = true;
+  document.getElementById('pageBgCol').checked = true;
+  toggleHeroBg();
+  togglePageBg();
 }
 
 /* ============================================================

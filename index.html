@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>社内アプリ配布ポータル</title>
+  <title>アプリ配布ポータル</title>
+  <link rel="icon" href="favicon.ico">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,7 +14,7 @@
   <div class="header-inner">
     <a class="brand" href="./">
       <div class="brand-icon">⚙</div>
-      <span class="brand-name">社内アプリ配布ポータル</span>
+      <span class="brand-name">アプリ配布ポータル</span>
     </a>
     <div class="search-wrap">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
@@ -28,8 +29,8 @@
 <!-- ========== Hero ========== -->
 <div class="hero">
   <div class="hero-inner">
-    <h1>社内ツール &amp; アプリケーション</h1>
-    <p>業務効率化のために開発された社内専用ツールを配布しています</p>
+    <h1>アプリケーション</h1>
+    <p>公開リポジトリから取得したアプリ情報を表示しています</p>
   </div>
 </div>
 
@@ -58,7 +59,7 @@
 
 <!-- ========== Footer ========== -->
 <footer class="site-footer">
-  <p>© 2024 社内システム部 &nbsp;|&nbsp; 問い合わせ: sys-team@example.com</p>
+  <p>GitHub Pages App Portal</p>
 </footer>
 
 <!-- ========== Modal ========== -->
@@ -438,9 +439,29 @@ function applyPageConfig(cfg) {
     if (el) el.textContent = cfg.siteTitle;
     document.title = cfg.siteTitle;
   }
-  if (cfg.siteIcon) {
+  if (cfg.siteIconImage) {
     const el = document.querySelector('.brand-icon');
-    if (el) el.textContent = cfg.siteIcon;
+    if (el) {
+      el.textContent = '';
+      const img = document.createElement('img');
+      img.src = cfg.siteIconImage;
+      img.alt = '';
+      el.appendChild(img);
+      el.classList.add('has-image');
+    }
+    let favicon = document.querySelector('link[rel="icon"]');
+    if (!favicon) {
+      favicon = document.createElement('link');
+      favicon.rel = 'icon';
+      document.head.appendChild(favicon);
+    }
+    favicon.href = cfg.siteIconImage;
+  } else if (cfg.siteIcon) {
+    const el = document.querySelector('.brand-icon');
+    if (el) {
+      el.classList.remove('has-image');
+      el.textContent = cfg.siteIcon;
+    }
   }
 
   // ヒーローエリア背景
@@ -481,7 +502,7 @@ function applyPageConfig(cfg) {
 }
 
 /* ============================================================
-   GitHub から自動読み込み (Page設定 & アプリ一覧を並行取得)
+   GitHub から自動読み込み (Page設定を反映してからアプリ一覧を取得)
    ============================================================ */
 (async () => {
   if (typeof GH_loadApps !== 'function') return;
@@ -490,16 +511,16 @@ function applyPageConfig(cfg) {
   loadingEl.removeAttribute('hidden');
 
   try {
-    // ページ設定とアプリ一覧を並行取得
-    const [pageConfig, ghApps] = await Promise.all([
-      typeof GH_loadPageConfig === 'function'
-        ? GH_loadPageConfig().catch(() => null)
-        : Promise.resolve(null),
-      GH_loadApps().catch(() => []),
-    ]);
+    const pageConfig = typeof GH_loadPageConfig === 'function'
+      ? await GH_loadPageConfig().catch(() => null)
+      : null;
 
     // ページ外観を先に適用
     applyPageConfig(pageConfig);
+
+    // Page_specified.txt で GitHub 取得元が指定される場合があるため、
+    // ページ設定を反映してからアプリ一覧を取得する
+    const ghApps = await GH_loadApps().catch(() => []);
 
     // アプリカードを更新
     if (ghApps.length > 0) {
