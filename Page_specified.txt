@@ -14,10 +14,13 @@ App_icon.ico
 #30A19F
 
 ◆ ヘッダー画像
-https://www.dropbox.com/scl/fi/th4wta4bsrw4b04jjn1mi/00027_1777178321_denoise.psd?rlkey=eidnwi7rjbnxaj01m5nur2rei&st=w7dkhi5t&dl=0
+images/hero.png
 
 ◆ ヘッダー文字タイトル
 You can download applications created in P2-Lab.
 
 ◆ ヘッダー文字説明
 Here, you can browse and download various C2H4 applications, including those for creating hacks and distributing at events.
+
+◆ 背景画像
+images/bg-tile.png
