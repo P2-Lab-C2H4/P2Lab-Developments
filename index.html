@@ -79,6 +79,19 @@
   </div>
 </div>
 
+<!-- ========== Image Preview Modal ========== -->
+<div class="image-modal-overlay" id="imageModalOverlay" aria-hidden="true">
+  <div class="image-modal-sheet" role="dialog" aria-modal="true" aria-label="画像プレビュー">
+    <button class="image-modal-close" id="imageModalClose" aria-label="画像プレビューを閉じる">
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none"
+           stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
+        <path d="M1 1l12 12M13 1L1 13"/>
+      </svg>
+    </button>
+    <img id="imageModalImg" class="image-modal-img" src="" alt="">
+  </div>
+</div>
+
 <script src="apps.js"></script>
 <script src="github-loader.js"></script>
 <script>
@@ -258,12 +271,15 @@ function openModal(id) {
   // モーダル画像エリア (close-bar の外、modal-body の前)
   const modalImagesEl = document.getElementById('modalImages');
   if (images.length > 0) {
-    const slides = images.map(src =>
-      `<img class="modal-slide-img" src="${src}" alt="" loading="lazy">`
+    const slides = images.map((src, i) =>
+      `<img class="modal-slide-img" src="${src}" alt="" loading="lazy"
+            role="button" tabindex="0" data-image-index="${i}" aria-label="画像を拡大表示">`
     ).join('');
     const dots = images.length > 1
       ? `<div class="slide-dots modal-slide-dots">${images.map((_, i) =>
-          `<span class="slide-dot${i === 0 ? ' active' : ''}"></span>`
+          `<button class="slide-dot${i === 0 ? ' active' : ''}" type="button"
+                   data-slide-index="${i}" aria-label="${i + 1}枚目の画像を表示"
+                   aria-current="${i === 0 ? 'true' : 'false'}"></button>`
         ).join('')}</div>`
       : '';
     modalImagesEl.innerHTML = `<div class="modal-images-wrap">
@@ -336,14 +352,51 @@ function openModal(id) {
     const mSlides = Array.from(mTrack.querySelectorAll('.modal-slide-img'));
     const mDots   = Array.from(modalImagesEl.querySelectorAll('.slide-dot'));
     let mCur = 0;
+
+    function restartModalSlideTimer() {
+      clearInterval(window._modalSlideTimer);
+      if (mSlides.length <= 1) return;
+      const interval = (typeof GH_CONFIG !== 'undefined') ? GH_CONFIG.slideInterval : 6000;
+      window._modalSlideTimer = setInterval(() => mGoTo(mCur + 1), interval);
+    }
+
     function mGoTo(idx) {
       mCur = (idx + mSlides.length) % mSlides.length;
       mTrack.style.transform = 'translateX(-' + (mCur * 100) + '%)';
-      mDots.forEach((d, i) => d.classList.toggle('active', i === mCur));
+      mDots.forEach((d, i) => {
+        const active = i === mCur;
+        d.classList.toggle('active', active);
+        d.setAttribute('aria-current', active ? 'true' : 'false');
+      });
+      mSlides.forEach((slide, i) => {
+        slide.tabIndex = i === mCur ? 0 : -1;
+      });
     }
+
+    mDots.forEach(dot => {
+      dot.addEventListener('click', event => {
+        event.stopPropagation();
+        mGoTo(Number(dot.dataset.slideIndex || 0));
+        restartModalSlideTimer();
+      });
+    });
+
+    mSlides.forEach(slide => {
+      slide.addEventListener('click', event => {
+        event.stopPropagation();
+        openImageModal(slide.src);
+      });
+      slide.addEventListener('keydown', event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        openImageModal(slide.src);
+      });
+    });
+
+    mGoTo(0);
+
     if (mSlides.length > 1) {
-      const interval = (typeof GH_CONFIG !== 'undefined') ? GH_CONFIG.slideInterval : 6000;
-      window._modalSlideTimer = setInterval(() => mGoTo(mCur + 1), interval);
+      restartModalSlideTimer();
     }
   }
 
@@ -359,10 +412,28 @@ function openModal(id) {
    ============================================================ */
 function closeModal() {
   clearInterval(window._modalSlideTimer);
+  closeImageModal();
   const overlay = document.getElementById('modalOverlay');
   overlay.classList.remove('open');
   overlay.setAttribute('aria-hidden', 'true');
   document.body.style.overflow = '';
+}
+
+function openImageModal(src) {
+  const overlay = document.getElementById('imageModalOverlay');
+  const img = document.getElementById('imageModalImg');
+  img.src = src;
+  overlay.classList.add('open');
+  overlay.removeAttribute('aria-hidden');
+  document.getElementById('imageModalClose').focus();
+}
+
+function closeImageModal() {
+  const overlay = document.getElementById('imageModalOverlay');
+  if (!overlay.classList.contains('open')) return;
+  overlay.classList.remove('open');
+  overlay.setAttribute('aria-hidden', 'true');
+  document.getElementById('imageModalImg').src = '';
 }
 
 /* ============================================================
@@ -404,7 +475,20 @@ document.getElementById('modalClose').addEventListener('click', closeModal);
 document.getElementById('modalOverlay').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeModal();
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+/* 画像プレビューモーダルを閉じる */
+document.getElementById('imageModalClose').addEventListener('click', closeImageModal);
+document.getElementById('imageModalOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeImageModal();
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (document.getElementById('imageModalOverlay').classList.contains('open')) {
+    closeImageModal();
+    return;
+  }
+  closeModal();
+});
 
 /* ============================================================
    初期描画 (静的データで先行表示)
