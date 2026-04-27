@@ -648,6 +648,8 @@ function hexToRgba(color, opacity) {
       }
 
       renderGrid();
+    } else if (typeof GH_getLastError === 'function' && GH_getLastError()) {
+      console.warn('[GitHub Loader] アプリ情報を取得できませんでした:', GH_getLastError());
     }
   } catch (e) {
     console.error('[GitHub Loader] エラー:', e);

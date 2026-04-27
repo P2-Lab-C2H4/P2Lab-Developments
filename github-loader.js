@@ -13,6 +13,8 @@ const GH_CONFIG = {
   cacheVersion:  '2026-04-26-v2',
 };
 
+let _ghLastError = null;
+
 {
   _detectGitHubPagesConfig();
   const params = new URLSearchParams(location.search);
@@ -48,9 +50,18 @@ function _ghHeaders() {
 async function _ghFetch(url) {
   try {
     const response = await fetch(url, { headers: _ghHeaders() });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      _ghLastError = {
+        url,
+        status: response.status,
+        remaining: response.headers.get('x-ratelimit-remaining'),
+        reset: response.headers.get('x-ratelimit-reset'),
+      };
+      return null;
+    }
     return response.json();
-  } catch {
+  } catch (error) {
+    _ghLastError = { url, status: 0, message: error?.message || 'fetch failed' };
     return null;
   }
 }
@@ -273,6 +284,7 @@ async function _fetchAllRepos() {
 
   while (true) {
     const data = await _ghFetch(base + '?per_page=100&page=' + page + '&sort=updated&type=public');
+    if (!data && page === 1) return null;
     if (!data || !data.length) break;
     repos.push(...data);
     if (data.length < 100) break;
@@ -382,8 +394,9 @@ window.GH_loadApps = async function () {
   if (!GH_CONFIG.owner) return [];
 
   const cacheKey = 'gh_apps_' + GH_CONFIG.owner + '_' + GH_CONFIG.ownerType + '_' + GH_CONFIG.cacheVersion;
+  let cached = null;
   try {
-    const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+    cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
     if (cached && Date.now() - cached.ts < GH_CONFIG.cacheMinutes * 60 * 1000) {
       return cached.apps || [];
     }
@@ -392,6 +405,10 @@ window.GH_loadApps = async function () {
   }
 
   const repos = await _fetchAllRepos();
+  if (!repos) {
+    if (cached?.apps?.length) return cached.apps;
+    return [];
+  }
   const results = [];
   const concurrency = 4;
 
@@ -410,6 +427,10 @@ window.GH_loadApps = async function () {
   }
 
   return results;
+};
+
+window.GH_getLastError = function () {
+  return _ghLastError;
 };
 
 const _slideTimers = new Map();

@@ -17,7 +17,7 @@ App_icon.ico
 images/hero.png
 
 ◆ ヘッダー文字タイトル
-You can download applications created in P2-Lab.
+P2-Lab アプリ製作所
 
 ◆ ヘッダー文字説明
 Here, you can browse and download various C2H4 applications, including those for creating hacks and distributing at events.
