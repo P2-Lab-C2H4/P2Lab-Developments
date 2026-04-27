@@ -22,5 +22,14 @@ You can download applications created in P2-Lab.
 ◆ ヘッダー文字説明
 Here, you can browse and download various C2H4 applications, including those for creating hacks and distributing at events.
 
+◆ ヘッダー文字背景
+あり
+
+◆ ヘッダー文字背景色
+#16161A
+
+◆ ヘッダー文字背景透過度
+0.36
+
 ◆ 背景画像
 images/bg-tile.png

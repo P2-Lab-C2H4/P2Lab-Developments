@@ -556,6 +556,23 @@ function applyPageConfig(cfg) {
   }
 
   // ヒーローエリア テキスト
+  const heroInner = document.querySelector('.hero-inner');
+  if (heroInner) {
+    const textBgValue = (cfg.heroTextBg || '').trim().toLowerCase();
+    const textBgEnabled = ['あり', 'on', 'true', 'yes', '1', '有効'].includes(textBgValue);
+    heroInner.classList.toggle('has-text-bg', textBgEnabled);
+    if (textBgEnabled) {
+      const bgColor = cfg.heroTextBgColor || '#16161A';
+      const opacityRaw = Number(cfg.heroTextBgOpacity);
+      const opacity = Number.isFinite(opacityRaw)
+        ? Math.max(0, Math.min(1, opacityRaw))
+        : 0.36;
+      heroInner.style.backgroundColor = hexToRgba(bgColor, opacity);
+    } else {
+      heroInner.style.backgroundColor = '';
+    }
+  }
+
   const heroH1 = document.querySelector('.hero h1');
   if (heroH1) {
     if (cfg.heroTitle)      heroH1.textContent = cfg.heroTitle;
@@ -575,6 +592,24 @@ function applyPageConfig(cfg) {
   } else if (cfg.bgColor) {
     document.body.style.background = cfg.bgColor;
   }
+}
+
+function hexToRgba(color, opacity) {
+  const value = (color || '').trim();
+  const shortHex = value.match(/^#([0-9a-f]{3})$/i);
+  const longHex = value.match(/^#([0-9a-f]{6})$/i);
+  if (shortHex) {
+    const [r, g, b] = shortHex[1].split('').map(ch => parseInt(ch + ch, 16));
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
+  if (longHex) {
+    const hex = longHex[1];
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
+  return value;
 }
 
 /* ============================================================

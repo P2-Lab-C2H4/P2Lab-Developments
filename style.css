@@ -151,6 +151,16 @@ body {
 
 .hero-inner { position: relative; }
 
+.hero-inner.has-text-bg {
+  display: inline-block;
+  max-width: min(920px, 100%);
+  padding: 18px 28px;
+  border-radius: 16px;
+  background: rgba(22, 22, 26, 0.36);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
 .hero h1 {
   font-size: clamp(22px, 4vw, 38px);
   font-weight: 800;
@@ -832,6 +842,7 @@ body {
   .header-inner      { padding: 10px 16px; }
   .brand-name        { display: none; }
   .hero              { padding: 40px 16px 36px; }
+  .hero-inner.has-text-bg { padding: 14px 18px; border-radius: 14px; }
   .main              { padding: 20px 16px 48px; }
   .app-grid          { grid-template-columns: 1fr; }
   .modal-overlay     { padding: 0; align-items: flex-end; }

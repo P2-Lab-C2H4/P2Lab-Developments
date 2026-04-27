@@ -487,6 +487,7 @@ function _parsePageConfig(text, assetResolver) {
   const asset = v => assetResolver(v);
 
   const heroColors = get('ヘッダー色', 'ヘッダー背景色', 'hero_color');
+  const heroTextBgEnabled = get('ヘッダー文字背景', '文字背景', 'hero_text_bg')[0] || null;
   const rawSiteIcon = get('サイトアイコン', 'ブランドアイコン', 'site_icon')[0] || null;
   const siteIconImageValue = get('サイトアイコン画像', 'サイトアイコンファイル', 'favicon', 'site_icon_image')[0] ||
     (/\.(?:ico|png|jpe?g|gif|webp|svg)(?:\?.*)?$/i.test(rawSiteIcon || '') ? rawSiteIcon : null);
@@ -513,6 +514,9 @@ function _parsePageConfig(text, assetResolver) {
     heroTitleColor: get('ヘッダー文字色',       'タイトル色',   'hero_title_color')[0] || null,
     heroDesc:       get('ヘッダー文字説明',     '説明文',       'hero_desc')[0]   || null,
     heroDescColor:  get('ヘッダー文字説明色',   '説明文色',     'hero_desc_color')[0]  || null,
+    heroTextBg:     heroTextBgEnabled,
+    heroTextBgColor: get('ヘッダー文字背景色', '文字背景色', 'hero_text_bg_color')[0] || null,
+    heroTextBgOpacity: get('ヘッダー文字背景透過度', '文字背景透過度', 'hero_text_bg_opacity')[0] || null,
 
     // ページ背景
     bgColor:        get('背景色', 'background_color', 'bg_color')[0] || null,
@@ -538,6 +542,9 @@ function _parsePageConfig(text, assetResolver) {
    ◆ ヘッダー文字色         ← 大見出しの文字色
    ◆ ヘッダー文字説明       ← ヒーローのサブ説明文
    ◆ ヘッダー文字説明色     ← サブ説明文の文字色
+   ◆ ヘッダー文字背景       ← 文字背景の有無 (あり / なし)
+   ◆ ヘッダー文字背景色     ← 文字背景の色 (例: #16161A)
+   ◆ ヘッダー文字背景透過度 ← 文字背景の透過度 (0〜1)
 
    ◆ 背景色                 ← ページ背景色
    ◆ 背景画像               ← ページ背景画像 (タイル繰り返し / 推奨: 400×400px)

@@ -255,6 +255,17 @@
       background: linear-gradient(135deg,#16161A 0%,#1E2A3A 55%,#0D3460 100%);
       transition: background 0.3s;
     }
+    .pv-hero-text {
+      display: inline-block;
+      max-width: 92%;
+      padding: 0;
+      border-radius: 10px;
+      transition: background 0.2s, padding 0.2s;
+    }
+    .pv-hero-text.has-bg {
+      padding: 10px 14px;
+      background: rgba(22,22,26,0.36);
+    }
     .pv-hero h2 {
       font-size: 18px; font-weight: 800;
       color: #fff; margin-bottom: 7px;
@@ -567,6 +578,36 @@
               <button class="color-clear" onclick="clearColor('heroDC','heroDCSw')" title="クリア">✕</button>
             </div>
           </div>
+
+          <div class="field">
+            <div class="field-label">文字背景 <span class="opt">省略可</span></div>
+            <select class="field-input" id="heroTextBg" onchange="toggleHeroTextBg();update()">
+              <option value="">指定なし</option>
+              <option value="あり">あり</option>
+              <option value="なし">なし</option>
+            </select>
+            <div class="field-hint">ヘッダー画像上の文字が読みにくい場合に、文字部分だけ半透明背景を表示します。</div>
+          </div>
+
+          <div id="heroTextBgFields" style="display:none">
+            <div class="field">
+              <div class="field-label">文字背景色 <span class="opt">省略可</span></div>
+              <div class="color-row">
+                <input type="color" class="color-swatch" id="heroTextBgColorSw" value="#16161A"
+                       oninput="swToText('heroTextBgColorSw','heroTextBgColor');update()">
+                <input type="text" class="field-input color-text" id="heroTextBgColor"
+                       placeholder="#16161A" oninput="textToSw('heroTextBgColor','heroTextBgColorSw');update()">
+                <button class="color-clear" onclick="clearColor('heroTextBgColor','heroTextBgColorSw')" title="クリア">✕</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <div class="field-label">文字背景透過度 <span class="opt">0〜1</span></div>
+              <input type="number" class="field-input" id="heroTextBgOpacity"
+                     min="0" max="1" step="0.05" placeholder="例: 0.36" oninput="update()">
+              <div class="field-hint">0 = 完全透明、1 = 不透明。おすすめは 0.30〜0.45 です。</div>
+            </div>
+          </div>
         </div>
 
         <!-- ── ページ背景 ── -->
@@ -628,8 +669,10 @@
             <span class="pv-nav-name" id="pvName">（サイト名）</span>
           </div>
           <div class="pv-hero" id="pvHero">
-            <h2 id="pvH1">（大見出し）</h2>
-            <p id="pvDesc">（サブ説明文）</p>
+            <div class="pv-hero-text" id="pvHeroText">
+              <h2 id="pvH1">（大見出し）</h2>
+              <p id="pvDesc">（サブ説明文）</p>
+            </div>
           </div>
           <div class="pv-content" id="pvContent">
             <div class="pv-cards">
@@ -731,6 +774,11 @@ function togglePageBg() {
   document.getElementById('pageBgImgFields').style.display = img ? 'block' : 'none';
 }
 
+function toggleHeroTextBg() {
+  const enabled = v('heroTextBg') === 'あり';
+  document.getElementById('heroTextBgFields').style.display = enabled ? 'block' : 'none';
+}
+
 /* ============================================================
    フォーム値取得
    ============================================================ */
@@ -744,6 +792,31 @@ function normalizeOwnerType(value) {
   if (v === 'org' || v === 'organization' || v === 'organisation') return 'org';
   if (v === 'user') return 'user';
   return '';
+}
+
+function normalizeHeroTextBg(value) {
+  const v = (value || '').trim().toLowerCase();
+  if (['あり', 'on', 'true', 'yes', '1', '有効'].includes(v)) return 'あり';
+  if (['なし', 'off', 'false', 'no', '0', '無効'].includes(v)) return 'なし';
+  return '';
+}
+
+function hexToRgba(color, opacity) {
+  const value = (color || '').trim();
+  const shortHex = value.match(/^#([0-9a-f]{3})$/i);
+  const longHex = value.match(/^#([0-9a-f]{6})$/i);
+  if (shortHex) {
+    const [r, g, b] = shortHex[1].split('').map(ch => parseInt(ch + ch, 16));
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
+  if (longHex) {
+    const hex = longHex[1];
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
+  return value;
 }
 
 /* ============================================================
@@ -803,6 +876,19 @@ function updatePreview() {
   dEl.textContent = v('heroDesc') || '（サブ説明文）';
   dEl.style.color = v('heroDC') || 'rgba(255,255,255,0.65)';
 
+  const heroTextEl = document.getElementById('pvHeroText');
+  const textBgEnabled = v('heroTextBg') === 'あり';
+  heroTextEl.classList.toggle('has-bg', textBgEnabled);
+  if (textBgEnabled) {
+    const opacityRaw = Number(v('heroTextBgOpacity'));
+    const opacity = Number.isFinite(opacityRaw)
+      ? Math.max(0, Math.min(1, opacityRaw))
+      : 0.36;
+    heroTextEl.style.backgroundColor = hexToRgba(v('heroTextBgColor') || '#16161A', opacity);
+  } else {
+    heroTextEl.style.backgroundColor = '';
+  }
+
   // ページ背景
   const contEl = document.getElementById('pvContent');
   contEl.style.backgroundImage = '';
@@ -860,6 +946,11 @@ function generateText() {
   add('ヘッダー文字色',       v('heroTC'));
   add('ヘッダー文字説明',     v('heroDesc'));
   add('ヘッダー文字説明色',   v('heroDC'));
+  add('ヘッダー文字背景',     v('heroTextBg'));
+  if (v('heroTextBg') === 'あり') {
+    add('ヘッダー文字背景色', v('heroTextBgColor'));
+    add('ヘッダー文字背景透過度', v('heroTextBgOpacity'));
+  }
 
   if (radio('pageBg') === 'image') {
     add('背景画像', v('bgImg'));
@@ -988,6 +1079,11 @@ function parseAndFill(text) {
   setCol('heroTC','heroTCSw',  get('ヘッダー文字色','タイトル色','hero_title_color')[0]);
   setVal('heroDesc',  get('ヘッダー文字説明','説明文','hero_desc')[0]);
   setCol('heroDC','heroDCSw',  get('ヘッダー文字説明色','説明文色','hero_desc_color')[0]);
+  const heroTextBgVal = get('ヘッダー文字背景','文字背景','hero_text_bg')[0];
+  if (heroTextBgVal) setVal('heroTextBg', normalizeHeroTextBg(heroTextBgVal));
+  setCol('heroTextBgColor','heroTextBgColorSw', get('ヘッダー文字背景色','文字背景色','hero_text_bg_color')[0]);
+  setVal('heroTextBgOpacity', get('ヘッダー文字背景透過度','文字背景透過度','hero_text_bg_opacity')[0]);
+  toggleHeroTextBg();
 
   const bgImgVal = get('背景画像','background_image','bg_image')[0];
   if (bgImgVal) {
@@ -1007,6 +1103,7 @@ function resetForm() {
     'githubOwner','githubOwnerType','githubPortalRepo','githubBranch',
     'siteTitle','siteIcon','siteIconImage','accentColor','navColor',
     'heroImg','heroC1','heroC2','heroTitle','heroTC','heroDesc','heroDC',
+    'heroTextBg','heroTextBgColor','heroTextBgOpacity',
     'bgImg','bgColor'
   ].forEach(id => {
     const el = document.getElementById(id);
@@ -1015,6 +1112,7 @@ function resetForm() {
   document.getElementById('heroBgCol').checked = true;
   document.getElementById('pageBgCol').checked = true;
   toggleHeroBg();
+  toggleHeroTextBg();
   togglePageBg();
 }
 
